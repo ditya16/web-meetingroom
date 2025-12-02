@@ -6,5 +6,5 @@ if (isLoggedIn()) {
 }
 
 showAlert('Anda telah logout.', 'info');
-redirect('index.php');
+native_redirect('/');
 ?>

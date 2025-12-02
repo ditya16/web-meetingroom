@@ -26,7 +26,7 @@ function autoload($className) {
 spl_autoload_register('autoload');
 
 // Helper functions
-function redirect($url) {
+function native_redirect($url) {
     header("Location: $url");
     exit();
 }
@@ -99,5 +99,51 @@ function displayAlert() {
               </div>";
         unset($_SESSION['alert']);
     }
+}
+
+
+
+function checkPermission($requiredRoles = []) {
+    if (!isLoggedIn()) {
+        native_redirect('/');
+    }
+
+    $user = getCurrentUser();
+
+    if (!empty($requiredRoles)) {
+        if (!is_array($requiredRoles)) {
+            $requiredRoles = [$requiredRoles];
+        }
+
+        if (!in_array($user['role'], $requiredRoles)) {
+            http_response_code(403);
+            die('<!DOCTYPE html>
+<html>
+<head>
+    <title>403 Forbidden</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+        .container { background: white; padding: 40px; border-radius: 8px; max-width: 500px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #dc3545; font-size: 48px; margin: 0; }
+        p { color: #666; margin: 10px 0; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>403</h1>
+        <p><strong>Forbidden</strong></p>
+        <p>You don\'t have permission to access this resource.</p>
+        <p>Role Anda: <strong>' . htmlspecialchars($user['role']) . '</strong></p>
+        <p>Dibutuhkan: <strong>' . htmlspecialchars(implode(', ', $requiredRoles)) . '</strong></p>
+        <p><a href="/dashboard">← Kembali ke Dashboard</a></p>
+    </div>
+</body>
+</html>');
+        }
+    }
+
+    return true;
 }
 ?>

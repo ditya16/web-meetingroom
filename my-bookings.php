@@ -1,9 +1,7 @@
 <?php
 require_once 'includes/functions.php';
 
-if (!isLoggedIn()) {
-    redirect('index.php');
-}
+checkPermission();
 
 $user = getCurrentUser();
 $booking = new Booking();

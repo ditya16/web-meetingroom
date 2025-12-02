@@ -1,9 +1,7 @@
 <?php
 require_once 'includes/functions.php';
 
-if (!isLoggedIn() || !hasRole(['Admin', 'Resepsionis'])) {
-    redirect('dashboard.php');
-}
+checkPermission(['Admin', 'Resepsionis']);
 
 $booking = new Booking();
 
@@ -37,7 +35,7 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
             }
             break;
     }
-    redirect('manage-bookings.php');
+    native_redirect('/manage-bookings');
 }
 
 // Get all bookings

@@ -2,7 +2,7 @@
 require_once 'includes/functions.php';
 
 if (!isLoggedIn()) {
-    redirect('index.php');
+    native_redirect('index.php');
 }
 
 $user = getCurrentUser();

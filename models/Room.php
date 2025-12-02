@@ -33,49 +33,49 @@ class Room {
     }
     
     public function getAvailableRooms($date, $startTime, $endTime, $excludeBookingId = null) {
-        $sql = "SELECT r.* FROM rooms r 
-                WHERE r.status = 'Aktif' 
+        $sql = "SELECT r.* FROM rooms r
+                WHERE r.status = 'Aktif'
                 AND r.id NOT IN (
-                    SELECT DISTINCT b.ruangan_id 
-                    FROM bookings b 
-                    WHERE b.tanggal = ? 
-                    AND b.status IN ('Diterima', 'Menunggu')
+                    SELECT DISTINCT b.ruangan_id
+                    FROM bookings b
+                    WHERE b.tanggal = ?
+                    AND b.status IN ('Diterima')
                     AND (
                         (b.waktu_mulai < ? AND b.waktu_selesai > ?) OR
                         (b.waktu_mulai < ? AND b.waktu_selesai > ?) OR
                         (b.waktu_mulai >= ? AND b.waktu_selesai <= ?)
                     )";
-        
+
         $params = [$date, $endTime, $startTime, $endTime, $startTime, $startTime, $endTime];
-        
+
         if ($excludeBookingId) {
             $sql .= " AND b.id != ?";
             $params[] = $excludeBookingId;
         }
-        
+
         $sql .= ") ORDER BY r.nama_ruangan";
-        
+
         return $this->db->fetchAll($sql, $params);
     }
     
     public function isRoomAvailable($roomId, $date, $startTime, $endTime, $excludeBookingId = null) {
-        $sql = "SELECT COUNT(*) as count FROM bookings 
-                WHERE ruangan_id = ? 
-                AND tanggal = ? 
-                AND status IN ('Diterima', 'Menunggu')
+        $sql = "SELECT COUNT(*) as count FROM bookings
+                WHERE ruangan_id = ?
+                AND tanggal = ?
+                AND status IN ('Diterima')
                 AND (
                     (waktu_mulai < ? AND waktu_selesai > ?) OR
                     (waktu_mulai < ? AND waktu_selesai > ?) OR
                     (waktu_mulai >= ? AND waktu_selesai <= ?)
                 )";
-        
+
         $params = [$roomId, $date, $endTime, $startTime, $endTime, $startTime, $startTime, $endTime];
-        
+
         if ($excludeBookingId) {
             $sql .= " AND id != ?";
             $params[] = $excludeBookingId;
         }
-        
+
         $result = $this->db->fetchOne($sql, $params);
         return $result['count'] == 0;
     }

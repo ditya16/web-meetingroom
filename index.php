@@ -3,7 +3,7 @@ require_once 'includes/functions.php';
 
 // Redirect jika sudah login
 if (isLoggedIn()) {
-    redirect('dashboard.php');
+    native_redirect('/dashboard');
 }
 
 $error = '';
@@ -18,7 +18,7 @@ if ($_POST) {
         $user = new User();
         if ($user->login($email, $password)) {
             showAlert('Login berhasil! Selamat datang.', 'success');
-            redirect('dashboard.php');
+            native_redirect('/dashboard');
         } else {
             $error = 'Email atau password salah.';
         }
@@ -120,24 +120,25 @@ ob_start();
     <?php endif; ?>
 
     <form method="POST">
+        <input type="hidden" name="_token" value="<?= csrf_token() ?>">
         <div class="mb-3 text-start">
             <label for="email" class="form-label">Email</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                <input type="email" class="form-control" id="email" name="email" 
+                <input type="email" class="form-control" id="email" name="email"
                        placeholder="contoh@ntp.co.id" value="<?= $_POST['email'] ?? '' ?>" required>
             </div>
         </div>
-        
+
         <div class="mb-4 text-start">
             <label for="password" class="form-label">Password</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                <input type="password" class="form-control" id="password" name="password" 
+                <input type="password" class="form-control" id="password" name="password"
                        placeholder="Masukkan password" required>
             </div>
         </div>
-        
+
         <button type="submit" class="btn btn-primary w-100 mb-3">
             <i class="bi bi-box-arrow-in-right"></i> Login
         </button>

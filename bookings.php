@@ -1,9 +1,7 @@
 <?php
 require_once 'includes/functions.php';
 
-if (!isLoggedIn()) {
-    redirect('index.php');
-}
+checkPermission();
 
 $user = getCurrentUser();
 $booking = new Booking();
@@ -47,7 +45,7 @@ if ($_POST) {
                     'waktu_mulai' => $waktuMulai,
                     'waktu_selesai' => $waktuSelesai,
                     'keperluan_rapat' => $keperluanRapat,
-                    'status' => hasRole(['Admin', 'Resepsionis', 'Direktur']) ? 'Diterima' : 'Menunggu'
+                    'status' => hasRole(['Direktur']) ? 'Diterima' : 'Menunggu'
                 ];
                 
                 if ($booking->createBooking($bookingData)) {
@@ -96,6 +94,7 @@ ob_start();
             </div>
             <div class="card-body">
                 <form method="POST" id="bookingForm">
+                    <input type="hidden" name="_token" value="<?php echo session()->token(); ?>" />
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="ruangan_id" class="form-label">Ruangan <span class="text-danger">*</span></label>
