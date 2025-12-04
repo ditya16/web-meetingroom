@@ -6,7 +6,7 @@ pipeline {
     }
 
     stages {
-
+        
         stage('Checkout') {
             steps {
                 checkout scm
@@ -18,11 +18,10 @@ pipeline {
                 sh """
                 mkdir -p docker/ssl
                 if [ ! -f docker/ssl/server.key ]; then
-                    echo "Generating SSL..."
                     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                        -keyout docker/ssl/server.key \
-                        -out docker/ssl/server.crt \
-                        -subj "/CN=localhost"
+                    -keyout docker/ssl/server.key \
+                    -out docker/ssl/server.crt \
+                    -subj "/CN=localhost"
                 fi
                 """
             }
@@ -32,20 +31,22 @@ pipeline {
             steps {
                 script {
 
+                    // STOP DAN BERSIHKAN
                     sh "docker compose down -v || true"
                     sh "docker volume prune -f || true"
 
+                    // UP + BUILD
                     sh "docker compose up -d --build"
 
                     // TUNGGU MYSQL HEALTHY
                     sh """
-                    echo "Waiting for MySQL to be healthy..."
+                    echo "Waiting for MySQL health..."
                     DB_CONTAINER=\$(docker compose ps -q db)
 
                     for i in {1..30}; do
                         STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)
                         echo "Status: \$STATUS"
-
+                        
                         if [ "\$STATUS" = "healthy" ]; then
                             echo "MySQL is healthy!"
                             break
@@ -54,13 +55,12 @@ pipeline {
                         sleep 3
                     done
 
-                    echo "Extra wait to ensure MySQL is ready..."
-                    sleep 10
+                    sleep 5
                     """
 
-                    // SETUP DATABASE - PAKAI TCP 127.0.0.1 (ANTI ERROR)
+                    // FIX: JANGAN PAKAI -h !!!!
                     sh '''
-docker compose exec -T db mysql -h127.0.0.1 -uroot -ppassword <<EOF
+docker compose exec -T db mysql -uroot -ppassword <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
 CREATE USER IF NOT EXISTS 'mr_user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON meetingroom.* TO 'mr_user'@'%';
@@ -68,15 +68,15 @@ FLUSH PRIVILEGES;
 EOF
 '''
 
-                    // LARAVEL SETUP
+                    // LARAVEL
                     sh """
                     docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
                     docker compose exec -T app composer install --no-dev --prefer-dist
                     docker compose exec -T app php artisan key:generate --force
+                    docker compose exec -T app php artisan migrate --force
                     docker compose exec -T app php artisan config:clear
                     docker compose exec -T app php artisan cache:clear
                     docker compose exec -T app php artisan view:clear
-                    docker compose exec -T app php artisan migrate --force
                     """
                 }
             }
@@ -84,7 +84,11 @@ EOF
     }
 
     post {
-        success { echo "Deployment berhasil!" }
-        failure { echo "Deployment gagal!" }
+        success {
+            echo "Deployment berhasil!"
+        }
+        failure {
+            echo "Deployment gagal!"
+        }
     }
 }
