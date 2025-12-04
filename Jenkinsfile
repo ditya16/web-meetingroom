@@ -36,32 +36,38 @@ pipeline {
                     
                     sh "docker compose up -d --build"
 
-                    // Tunggu MySQL HEALTHY
+                    // TUNGGU MYSQL HEALTHY
                     sh """
                     echo "Waiting for MySQL to be healthy..."
                     DB_CONTAINER=\$(docker compose ps -q db)
 
                     for i in {1..30}; do
-                      STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)
-                      echo "Status: \$STATUS"
-                      if [ "\$STATUS" = "healthy" ]; then
-                        echo "MySQL is healthy!"
-                        break
-                      fi
-                      sleep 3
+                        STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)
+                        echo "Status: \$STATUS"
+
+                        if [ "\$STATUS" = "healthy" ]; then
+                            echo "MySQL is healthy!"
+                            break
+                        fi
+
+                        sleep 3
                     done
+
+                    echo "Extra wait for MySQL initialization..."
+                    sleep 5
                     """
 
-                    // Setup database (HOST = db)
+                    // SETUP DATABASE PAKAI INTERNAL SOCKET (PESTI CONNECT)
                     sh '''
-docker compose exec -T db mysql -hdb -uroot -ppassword <<EOF
+docker compose exec -T db mysql -uroot -ppassword <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
 CREATE USER IF NOT EXISTS 'mr_user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON meetingroom.* TO 'mr_user'@'%';
 FLUSH PRIVILEGES;
 EOF
 '''
-                    // Laravel setup
+
+                    // LARAVEL SETUP
                     sh """
                     docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
                     docker compose exec -T app composer install --no-dev --prefer-dist
