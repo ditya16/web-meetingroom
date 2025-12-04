@@ -18,10 +18,11 @@ pipeline {
                 sh """
                 mkdir -p docker/ssl
                 if [ ! -f docker/ssl/server.key ]; then
+                    echo "Generating SSL..."
                     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                    -keyout docker/ssl/server.key \
-                    -out docker/ssl/server.crt \
-                    -subj "/CN=localhost"
+                        -keyout docker/ssl/server.key \
+                        -out docker/ssl/server.crt \
+                        -subj "/CN=localhost"
                 fi
                 """
             }
@@ -33,7 +34,7 @@ pipeline {
 
                     sh "docker compose down -v || true"
                     sh "docker volume prune -f || true"
-                    
+
                     sh "docker compose up -d --build"
 
                     // TUNGGU MYSQL HEALTHY
@@ -53,13 +54,13 @@ pipeline {
                         sleep 3
                     done
 
-                    echo "Extra wait for MySQL initialization..."
-                    sleep 5
+                    echo "Extra wait to ensure MySQL is ready..."
+                    sleep 10
                     """
 
-                    // SETUP DATABASE PAKAI INTERNAL SOCKET (PESTI CONNECT)
+                    // SETUP DATABASE - PAKAI TCP 127.0.0.1 (ANTI ERROR)
                     sh '''
-docker compose exec -T db mysql -uroot -ppassword <<EOF
+docker compose exec -T db mysql -h127.0.0.1 -uroot -ppassword <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
 CREATE USER IF NOT EXISTS 'mr_user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON meetingroom.* TO 'mr_user'@'%';
