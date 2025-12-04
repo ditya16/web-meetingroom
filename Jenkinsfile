@@ -6,6 +6,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -30,33 +31,36 @@ pipeline {
             steps {
                 script {
 
-                    // Matikan container + hapus volume lama
                     sh "docker compose down -v || true"
                     sh "docker volume prune -f || true"
 
-                    // Build + run ulang
                     sh "docker compose up -d --build"
 
-                    // Tunggu MySQL benar-benar hidup
+                    // Tunggu MySQL healthy
                     sh """
+                    echo "Waiting for MySQL to be healthy..."
                     DB_CONTAINER=\$(docker compose ps -q db)
-                    until [ "\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)" = "healthy" ]; do
+
+                    for i in {1..30}; do
+                      STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)
+                      if [ "\$STATUS" = "healthy" ]; then
+                        echo "MySQL is healthy!"
+                        break
+                      fi
+                      echo "MySQL not ready yet... (\$i)"
                       sleep 5
                     done
                     """
 
-                    // Set database & user
-                    sh """
-                    docker compose exec -T db sh -c '
-                    mysql -u root -p"password" <<EOF
-                    CREATE DATABASE IF NOT EXISTS meetingroom;
-                    CREATE USER IF NOT EXISTS "mr_user"@"%" IDENTIFIED BY "password";
-                    GRANT ALL PRIVILEGES ON meetingroom.* TO "mr_user"@"%";
-                    FLUSH PRIVILEGES;
-                    EOF
-                    '
-                    """
-
+                    // Buat DB & User
+                    sh '''
+docker compose exec -T db mysql -u root -ppassword <<EOF
+CREATE DATABASE IF NOT EXISTS meetingroom;
+CREATE USER IF NOT EXISTS 'mr_user'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON meetingroom.* TO 'mr_user'@'%';
+FLUSH PRIVILEGES;
+EOF
+'''
                     // Laravel setup
                     sh """
                     docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
@@ -73,11 +77,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "Deployment berhasil!"
-        }
-        failure {
-            echo "Deployment gagal!"
-        }
+        success { echo "Deployment berhasil!" }
+        failure { echo "Deployment gagal!" }
     }
 }
