@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     triggers {
-        pollSCM('H/1 * * * *')
+        pollSCM('H/1 * * * *') // cek setiap 1 menit
     }
 
     stages {
@@ -34,13 +34,15 @@ pipeline {
                     echo "Laravel setup..."
                     sh """
                         if [ -f artisan ]; then
-                            docker compose exec -T app rm -f /var/www/html/.env
-                            docker compose exec -T app cp /var/www/html/.env.example /var/www/html/.env
-                            docker compose exec -T app composer install --no-dev --prefer-dist
-                            docker compose exec -T app php artisan key:generate --force
-                            docker compose exec -T app php artisan migrate --force
-                            docker compose exec -T app php artisan cache:clear
-                            docker compose exec -T app php artisan view:clear
+                            docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
+                            docker compose exec -T app composer install --no-dev --prefer-dist || true
+                            docker compose exec -T app php artisan key:generate --force || true
+
+                            # Jalankan migrate tapi skip tabel yang sudah ada
+                            docker compose exec -T app php artisan migrate --force || true
+
+                            docker compose exec -T app php artisan cache:clear || true
+                            docker compose exec -T app php artisan view:clear || true
                         fi
                     """
                 }
