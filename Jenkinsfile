@@ -27,41 +27,40 @@ pipeline {
             }
         }
 
-        stage('Deploy with Docker') {
+        stage('Deploy Docker') {
             steps {
                 script {
 
                     sh "docker compose down -v || true"
                     sh "docker volume prune -f || true"
-
+                    
                     sh "docker compose up -d --build"
 
-                    // Tunggu MySQL sampai healthy
+                    // Tunggu MySQL HEALTHY
                     sh """
                     echo "Waiting for MySQL to be healthy..."
                     DB_CONTAINER=\$(docker compose ps -q db)
 
                     for i in {1..30}; do
                       STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)
+                      echo "Status: \$STATUS"
                       if [ "\$STATUS" = "healthy" ]; then
                         echo "MySQL is healthy!"
                         break
                       fi
-                      echo "MySQL not ready yet... (\$i)"
-                      sleep 5
+                      sleep 3
                     done
                     """
 
-                    // Setup DB dan user (PAKAI TCP biar tidak pakai socket)
+                    // Setup database (HOST = db)
                     sh '''
-docker compose exec -T db mysql -h127.0.0.1 -uroot -ppassword <<EOF
+docker compose exec -T db mysql -hdb -uroot -ppassword <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
 CREATE USER IF NOT EXISTS 'mr_user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON meetingroom.* TO 'mr_user'@'%';
 FLUSH PRIVILEGES;
 EOF
 '''
-
                     // Laravel setup
                     sh """
                     docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true

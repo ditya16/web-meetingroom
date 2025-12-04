@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: meetingroom-app
     volumes:
       - .:/var/www/html
     depends_on:
@@ -13,6 +14,7 @@ services:
 
   web:
     image: nginx:1.25
+    container_name: meetingroom-web
     ports:
       - "443:443"
     volumes:
@@ -25,8 +27,13 @@ services:
 
   db:
     image: mysql:8.0
-    command:
-      --default-authentication-plugin=mysql_native_password
+    container_name: meetingroom-db
+    command: [
+      "--default-authentication-plugin=mysql_native_password",
+      "--max_connections=200",
+      "--wait_timeout=28800",
+      "--bind-address=0.0.0.0"
+    ]
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: password
@@ -37,9 +44,10 @@ services:
     # ⭐ FIX PENTING: Healthcheck yang benar
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -uroot -ppassword || exit 1"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 10s
 
     volumes:
       - db_data:/var/lib/mysql
