@@ -8,9 +8,7 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
         stage('Prepare SSL') {
@@ -58,12 +56,12 @@ pipeline {
                         sleep 3
                     done
 
-                    sleep 5
+                    sleep 3
                     """
 
-                    // FIX: PAKAI TCP (bukan socket)
+                    // ⭐ FIX PENTING: PAKAI HOSTNAME DB
                     sh '''
-docker compose exec -T db mysql -h127.0.0.1 -P3306 -uroot -ppassword <<EOF
+docker compose exec -T db mysql -uroot -ppassword -h db <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
 CREATE USER IF NOT EXISTS 'mr_user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON meetingroom.* TO 'mr_user'@'%';
@@ -71,15 +69,17 @@ FLUSH PRIVILEGES;
 EOF
 '''
 
-                    // LARAVEL SETUP
+                    // Laravel
                     sh """
                     docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
                     docker compose exec -T app composer install --no-dev --prefer-dist
                     docker compose exec -T app php artisan key:generate --force
-                    docker compose exec -T app php artisan migrate --force
+                    
                     docker compose exec -T app php artisan config:clear
                     docker compose exec -T app php artisan cache:clear
                     docker compose exec -T app php artisan view:clear
+                    
+                    docker compose exec -T app php artisan migrate --force
                     """
                 }
             }
