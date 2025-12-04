@@ -16,14 +16,12 @@ try {
 done
 echo "Database ready."
 
-# Run migrations automatically
-php artisan migrate --force
-
-# Optional seeders
-if [ "$AUTO_SEED" = "true" ]; then
-  php artisan db:seed --force
+if [ -f artisan ]; then
+    php artisan migrate --force
+    if [ "$AUTO_SEED" = "true" ]; then
+      php artisan db:seed --force
+    fi
 fi
 
-# Start services
 php-fpm -D
 exec nginx -g "daemon off;"

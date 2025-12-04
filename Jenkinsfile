@@ -6,10 +6,9 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
-                echo "📥 Pulling latest code..."
+                echo "Pulling latest code..."
                 checkout scm
             }
         }
@@ -17,14 +16,13 @@ pipeline {
         stage('Deploy with Docker') {
             steps {
                 script {
-
-                    echo "🐳 Stopping old containers..."
+                    echo "Stopping old containers..."
                     sh "docker compose down -v || true"
 
-                    echo "🔨 Building & starting new containers..."
+                    echo "Building & starting new containers..."
                     sh "docker compose up -d --build"
 
-                    echo "⏳ Waiting for MySQL to be healthy..."
+                    echo "Waiting for MySQL to be healthy..."
                     sh """
                         until [ "\$(docker inspect --format='{{.State.Health.Status}}' meetingapp-db-1)" = "healthy" ]; do
                             echo 'Waiting for MySQL...'
@@ -32,18 +30,16 @@ pipeline {
                         done
                     """
 
-                    echo "⚙️ Running Laravel setup..."
+                    echo "Laravel setup if exists..."
                     sh """
-                        docker compose exec -T app rm -f /var/www/html/.env
-                        docker compose exec -T app cp /var/www/html/.env.example /var/www/html/.env
-
-                        docker compose exec -T app composer install --no-dev --prefer-dist
-
-                        docker compose exec -T app php artisan key:generate --force
-                        docker compose exec -T app php artisan migrate --force
-
-                        docker compose exec -T app php artisan cache:clear
-                        docker compose exec -T app php artisan view:clear
+                        if [ -f artisan ]; then
+                          docker compose exec -T app rm -f /var/www/html/.env
+                          docker compose exec -T app cp /var/www/html/.env.example /var/www/html/.env
+                          docker compose exec -T app composer install --no-dev --prefer-dist
+                          docker compose exec -T app php artisan key:generate --force
+                          docker compose exec -T app php artisan cache:clear
+                          docker compose exec -T app php artisan view:clear
+                        fi
                     """
                 }
             }
@@ -51,11 +47,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "🎉 Deployment berhasil!"
-        }
-        failure {
-            echo "❌ Deployment gagal!"
-        }
+        success { echo "Deployment berhasil!" }
+        failure { echo "Deployment gagal!" }
     }
 }
