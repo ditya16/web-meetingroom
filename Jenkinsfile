@@ -36,7 +36,7 @@ pipeline {
 
                     sh "docker compose up -d --build"
 
-                    // Tunggu MySQL healthy
+                    // Tunggu MySQL sampai healthy
                     sh """
                     echo "Waiting for MySQL to be healthy..."
                     DB_CONTAINER=\$(docker compose ps -q db)
@@ -52,15 +52,16 @@ pipeline {
                     done
                     """
 
-                    // Buat DB & User
+                    // Setup DB dan user (PAKAI TCP biar tidak pakai socket)
                     sh '''
-docker compose exec -T db mysql -u root -ppassword <<EOF
+docker compose exec -T db mysql -h127.0.0.1 -uroot -ppassword <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
 CREATE USER IF NOT EXISTS 'mr_user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON meetingroom.* TO 'mr_user'@'%';
 FLUSH PRIVILEGES;
 EOF
 '''
+
                     // Laravel setup
                     sh """
                     docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
