@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-fpm-bullseye
 
 # Install dependencies + Composer
 RUN apt-get update && apt-get install -y \
