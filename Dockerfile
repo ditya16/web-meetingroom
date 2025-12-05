@@ -1,10 +1,7 @@
 FROM php:8.2-fpm-bullseye
 
-# Fix DNS supaya composer tidak timeout
-RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
-
-# Composer environment
-ENV COMPOSER_ALLOW_SUPERUSER=1
+# Accept DNS from build args (optional)
+ARG DNS=8.8.8.8
 
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,10 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /var/www/html
 
-# Copy composer files first (layer caching)
 COPY composer.json composer.lock ./
 
-# Install composer dependencies (anti timeout)
 RUN composer install \
     --no-dev \
     --prefer-dist \
@@ -28,9 +23,7 @@ RUN composer install \
     --no-scripts \
     --timeout=600 || true
 
-# Copy full project
 COPY . .
 
-# Fix permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 777 storage bootstrap/cache
