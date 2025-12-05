@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# SSL files (never commit)
+docker/ssl/
+docker/ssl/server.crt
+docker/ssl/server.key
