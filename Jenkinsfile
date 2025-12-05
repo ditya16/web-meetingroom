@@ -4,7 +4,10 @@ pipeline {
     triggers { pollSCM('H/1 * * * *') }
 
     stages {
-        stage('Checkout') { steps { checkout scm } }
+
+        stage('Checkout') {
+            steps { checkout scm }
+        }
 
         stage('Prepare SSL') {
             steps {
@@ -14,7 +17,7 @@ pipeline {
                     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
                     -keyout docker/ssl/server.key \
                     -out docker/ssl/server.crt \
-                    -subj "/CN=localhost"
+                    -subj "/CN=pklntp.com"
                 fi
                 """
             }
@@ -23,30 +26,23 @@ pipeline {
         stage('Deploy Docker') {
             steps {
                 script {
-                    sh "docker compose down -v || true"
-                    sh "docker volume prune -f || true"
+
+                    sh "docker compose down || true"
                     sh "docker compose up -d --build"
 
-                    // WAIT MYSQL HEALTHY
+                    // WAIT UNTIL MYSQL HEALTHY
                     sh """
-                    echo "Waiting for MySQL to become healthy..."
-                    DB_CONTAINER=\$(docker compose ps -q db)
+                    echo "Waiting for MySQL..."
+                    DB=\$(docker compose ps -q db)
                     for i in {1..40}; do
-                        STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)
-                        echo "Status: \$STATUS"
-                        if [ "\$STATUS" = "healthy" ]; then
-                            echo "MySQL is healthy!"
-                            break
-                        fi
-                        if [ "\$i" -eq 40 ]; then
-                            echo "MySQL failed to become healthy!"
-                            exit 1
-                        fi
+                        STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB)
+                        echo "MySQL status: \$STATUS"
+                        [ "\$STATUS" = "healthy" ] && break
                         sleep 3
                     done
                     """
 
-                    // Setup DB & user di container db
+                    // CREATE USER + DB ONLY IF NOT EXISTS
                     sh '''
 docker compose exec -T db mysql -uroot -ppassword <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
@@ -56,14 +52,12 @@ FLUSH PRIVILEGES;
 EOF
 '''
 
-                    // Laravel setup
+                    // SETUP LARAVEL
                     sh """
-                    docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
+                    docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env
                     docker compose exec -T app composer install --no-dev --prefer-dist
                     docker compose exec -T app php artisan key:generate --force
                     docker compose exec -T app php artisan config:clear
-                    docker compose exec -T app php artisan cache:clear
-                    docker compose exec -T app php artisan view:clear
                     docker compose exec -T app php artisan migrate --force
                     """
                 }
@@ -72,7 +66,7 @@ EOF
     }
 
     post {
-        success { echo "Deployment berhasil!" }
-        failure { echo "Deployment gagal!" }
+        success { echo "Deploy FINISHED✔" }
+        failure { echo "Deploy FAILED❌" }
     }
 }
