@@ -1,5 +1,11 @@
 FROM php:8.2-fpm-bullseye
 
+# Fix DNS supaya composer tidak timeout
+RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
+
+# Composer environment
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     zip unzip git curl libpng-dev libonig-dev libxml2-dev default-mysql-client bash \
@@ -10,13 +16,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /var/www/html
 
-# Copy only composer files first (for caching)
+# Copy composer files first (layer caching)
 COPY composer.json composer.lock ./
 
-# Install composer dependencies, with cache layer
-RUN composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-progress || true
+# Install composer dependencies (anti timeout)
+RUN composer install \
+    --no-dev \
+    --prefer-dist \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --timeout=600 || true
 
-# Now copy whole application
+# Copy full project
 COPY . .
 
 # Fix permissions
