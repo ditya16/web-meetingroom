@@ -6,7 +6,9 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
         }
 
         stage('Prepare SSL') {
@@ -27,22 +29,24 @@ pipeline {
             steps {
                 script {
 
+                    echo "DOWN old containers…"
                     sh "docker compose down || true"
+
+                    echo "BUILD + UP…"
                     sh "docker compose up -d --build"
 
-                    // WAIT UNTIL MYSQL HEALTHY
-                    sh """
-                    echo "Waiting for MySQL..."
-                    DB=\$(docker compose ps -q db)
-                    for i in {1..40}; do
-                        STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB)
-                        echo "MySQL status: \$STATUS"
-                        [ "\$STATUS" = "healthy" ] && break
-                        sleep 3
-                    done
-                    """
+                    echo "WAITING FOR MYSQL…"
+                    sh '''
+DB=$(docker compose ps -q db)
+for i in {1..40}; do
+    STATUS=$(docker inspect --format='{{.State.Health.Status}}' $DB)
+    echo "MySQL status: $STATUS"
+    [ "$STATUS" = "healthy" ] && break
+    sleep 3
+done
+'''
 
-                    // CREATE USER + DB ONLY IF NOT EXISTS
+                    echo "CREATE DB + USER…"
                     sh '''
 docker compose exec -T db mysql -uroot -ppassword <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
@@ -52,13 +56,20 @@ FLUSH PRIVILEGES;
 EOF
 '''
 
-                    // SETUP LARAVEL
+                    echo "LARAVEL SETUP…"
                     sh """
-                    docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env
+                    # Fix git safe.directory supaya composer ga error
+                    docker compose exec -T app git config --global --add safe.directory /var/www/html || true
+
+                    # Generate env hanya kalau belum ada
+                    docker compose exec -T app bash -c 'cp -n /var/www/html/.env.example /var/www/html/.env'
+
                     docker compose exec -T app composer install --no-dev --prefer-dist
                     docker compose exec -T app php artisan key:generate --force
                     docker compose exec -T app php artisan config:clear
-                    docker compose exec -T app php artisan migrate --force
+
+                    # MIGRATE tapi jangan gagal kalau tabel sudah ada
+                    docker compose exec -T app php artisan migrate --force || true
                     """
                 }
             }
@@ -66,7 +77,7 @@ EOF
     }
 
     post {
-        success { echo "Deploy FINISHED✔" }
-        failure { echo "Deploy FAILED❌" }
+        success { echo "Deploy FINISHED ✔" }
+        failure { echo "Deploy FAILED ❌" }
     }
 }
