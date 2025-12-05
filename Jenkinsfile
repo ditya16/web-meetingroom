@@ -6,7 +6,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps { checkout scm }
         }
@@ -28,38 +27,31 @@ pipeline {
         stage('Deploy Docker') {
             steps {
                 script {
-
                     sh "docker compose down -v || true"
                     sh "docker volume prune -f || true"
-
                     sh "docker compose up -d --build"
 
                     // WAIT MYSQL HEALTHY
                     sh """
                     echo "Waiting for MySQL health..."
                     DB_CONTAINER=\$(docker compose ps -q db)
-
                     for i in {1..40}; do
                         STATUS=\$(docker inspect --format='{{.State.Health.Status}}' \$DB_CONTAINER)
                         echo "Status: \$STATUS"
-
                         if [ "\$STATUS" = "healthy" ]; then
                             echo "MySQL is healthy!"
                             break
                         fi
-
                         if [ "\$i" -eq 40 ]; then
                             echo "MySQL failed to become healthy!"
                             exit 1
                         fi
-
                         sleep 3
                     done
-
                     sleep 3
                     """
 
-                    // ⭐ FIX PENTING: PAKAI HOSTNAME DB
+                    // Setup DB & user
                     sh '''
 docker compose exec -T db mysql -uroot -ppassword -h db <<EOF
 CREATE DATABASE IF NOT EXISTS meetingroom;
@@ -74,11 +66,9 @@ EOF
                     docker compose exec -T app cp -n /var/www/html/.env.example /var/www/html/.env || true
                     docker compose exec -T app composer install --no-dev --prefer-dist
                     docker compose exec -T app php artisan key:generate --force
-                    
                     docker compose exec -T app php artisan config:clear
                     docker compose exec -T app php artisan cache:clear
                     docker compose exec -T app php artisan view:clear
-                    
                     docker compose exec -T app php artisan migrate --force
                     """
                 }
