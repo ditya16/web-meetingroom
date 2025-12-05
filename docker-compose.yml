@@ -39,8 +39,10 @@ services:
       MYSQL_PASSWORD: password
     command:
       - --default-authentication-plugin=mysql_native_password
+    volumes:
+      - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -uroot -ppassword || exit 1"]
+      test: ["CMD", "mysqladmin", "ping", "-uroot", "-ppassword"]
       interval: 5s
       timeout: 5s
       retries: 20
